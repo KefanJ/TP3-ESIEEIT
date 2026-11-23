@@ -1,0 +1,127 @@
+﻿using System.Globalization;
+
+//##### 0. Mise en place #####
+
+// 0.2 Mettre à jour etudiants.csv 
+
+/*
+    1. Adaptez la lecture de etudiants.csv (LINQ, comme à la séance 2) au nouveau champ. Vérifiez que 
+vous obtenez 6 inscrits.    
+ */
+Console.WriteLine("##### 0. Mise en place #####");
+Console.WriteLine();
+var etudiantsInscrits = File.ReadLines("etudiants.csv")
+    .Skip(1)
+    .Select(inscrit =>
+    {
+        var elements = inscrit.Split(',');
+        return new Inscrit(elements[0], elements[1], elements[2], elements[3]);
+    })
+    .ToList();
+
+foreach (var etudiant in etudiantsInscrits)
+{
+    Console.WriteLine(etudiant);
+}
+
+//##### 1. Exceptions  #####
+
+Console.WriteLine();
+Console.WriteLine("##### 1. Exceptions  #####");
+Console.WriteLine();
+
+//1.1 Une note toujours valide 
+
+/*
+    2. Modifiez le record Note pour qu’une valeur hors de l’intervalle 0–20 lève une 
+ArgumentOutOfRangeException dès la création (voir la slide « Lever ses propres exceptions »). 
+Vérifiez avec new Note("Lovelace", "Ada", "Algo", 25, 3). 
+ */
+static Note? Parser(string ligne)
+{
+    var c = ligne.Split(',');
+    if (c.Length != 5) return null;
+    if (!double.TryParse(c[3], CultureInfo.InvariantCulture, out var v)) return null;
+    if (v < 0 || v > 20) return null;
+    if (!int.TryParse(c[4], out var coef)) return null;
+    return new Note(c[0], c[1], c[2], v, coef);
+}
+
+var notes = File.ReadLines("notes.csv").Skip(1).Select(Parser).OfType<Note>().ToList();
+/*
+    2. Modifiez le record Note pour qu’une valeur hors de l’intervalle 0–20 lève une 
+ArgumentOutOfRangeException dès la création (voir la slide « Lever ses propres exceptions »). 
+Vérifiez avec new Note("Lovelace", "Ada", "Algo", 25, 3). 
+ */
+
+//var noteAuDessusDe20 = new Note("Lovelace", "Ada", "Algo", 25, 3);
+//notes.Add(noteAuDessusDe20);
+
+/*
+    3. Ajoutez de même une vérification : le coefficient doit être strictement positif. Utilisez une méthode 
+d’aide ArgumentOutOfRangeException.ThrowIfNegativeOrZero. 
+ */
+
+//var noteCoefNegatif = new Note("Lovelace", "Ada", "Algo", 19, -3);
+//notes.Add(noteCoefNegatif);
+
+//foreach (var note in notes)
+//{
+//    Console.WriteLine(note);
+//}
+
+// 1.2 Signaler les lignes invalides
+
+/*
+    4. Écrivez static Note ParserStrict(string ligne, int numero) qui lève une FormatException 
+dont le message indique le numéro de ligne et la raison (nombre de champs, note non numérique…). 
+Laissez remonter l’ArgumentOutOfRangeException du record pour une note hors limites. 
+ */
+static Note ParserStrict(string ligne, int numero)
+{
+    var c = ligne.Split(',', StringSplitOptions.TrimEntries);
+    if (c.Length != 5) 
+        throw new FormatException($"Ligne {numero} : 5 champs attendus ({c.Length} trouvées)");
+    if (!double.TryParse(c[3], CultureInfo.InvariantCulture, out var v)) 
+        throw  new FormatException($"Ligne {numero} : conversion ({c[3]} impossible)");
+    if (!int.TryParse(c[4], out var coef))
+        throw new FormatException($"Ligne {numero} : conversion ({c[4]} impossible)");
+    return new Note(c[0], c[1], c[2], v, coef);
+}
+
+/*
+    5. Écrivez une méthode qui lit notes.csv, appelle ParserStrict sur chaque ligne, garde les notes 
+valides et affiche un message sur Console.Error pour chaque ligne rejetée. Ici, une boucle foreach 
+avec un try/catch à l’intérieur est plus lisible que LINQ. 
+ */
+
+Console.WriteLine("// Test ReadNotes");
+Console.WriteLine();
+List<Note> ReadNotes()
+{
+    var notesValides = new List<Note>();
+    var notes = File.ReadAllLines("notes.csv").Skip(1).ToList();
+    int numero = 2;
+    foreach (var note in notes)
+    {
+        try
+        {
+            var n = ParserStrict(note, numero);
+            notesValides.Add(n);
+        }
+        catch (FormatException e)
+        {
+            Console.Error.WriteLine(e.Message);
+        }
+        catch (ArgumentOutOfRangeException e)
+        {
+            Console.Error.WriteLine($"Ligne {numero} : {e.Message}");
+        }
+        numero++;
+    }
+    
+   return notesValides;    
+}
+
+var Nbnotes = ReadNotes().Count;
+Console.WriteLine($"Nombre de note  valides : {Nbnotes}");
