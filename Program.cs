@@ -1,4 +1,6 @@
 ﻿using System.Globalization;
+using System.Text.Json;
+using TP3;
 
 //##### 0. Mise en place #####
 
@@ -47,7 +49,7 @@ static Note? Parser(string ligne)
     return new Note(c[0], c[1], c[2], v, coef);
 }
 
-var notes = File.ReadLines("notes.csv").Skip(1).Select(Parser).OfType<Note>().ToList();
+//var notes = File.ReadLines("notes.csv").Skip(1).Select(Parser).OfType<Note>().ToList();
 /*
     2. Modifiez le record Note pour qu’une valeur hors de l’intervalle 0–20 lève une 
 ArgumentOutOfRangeException dès la création (voir la slide « Lever ses propres exceptions »). 
@@ -123,5 +125,53 @@ List<Note> ReadNotes()
    return notesValides;    
 }
 
-var Nbnotes = ReadNotes().Count;
-Console.WriteLine($"Nombre de note  valides : {Nbnotes}");
+//var Nbnotes = ReadNotes().Count;
+//Console.WriteLine($"Nombre de note  valides : {Nbnotes}");
+
+//var notes = ReadNotes();
+
+// #### 2. Sauvegarder la promo en JSON ####
+
+/*
+    8. Complétez Sauver et Charger. Sauvegardez les notes dans promo.json et ouvrez le fichier : comment 
+s’écrivent les noms des propriétés ? Pourquoi ?
+ */
+
+//Stockage.Sauver("promo.json", ReadNotes());
+
+/*
+    9. Au démarrage, le programme charge promo.json s’il existe, et sinon importe notes.csv puis crée 
+promo.json. Testez les deux cas en supprimant le fichier. 
+
+
+10. Abîmez promo.json à la main (supprimez une accolade). Que se passe-t-il ? Interceptez l’exception, 
+affichez un message clair, et repartez de notes.csv. 
+11. Modifiez une note dans promo.json pour lui donner la valeur 30. Que se passe-t-il au chargement, et 
+pourquoi ? Est-ce le comportement souhaité ?
+ */
+Console.WriteLine("#### 2. Sauvegarder la promo en JSON  ####");
+Console.WriteLine();
+
+List<Note> notes;
+if (File.Exists("promo.json"))
+{
+    try
+    {
+        notes = Stockage.Charger("promo.json");
+        Console.WriteLine("Chargé depuis promo.json");
+    }
+    catch (JsonException e)
+    { 
+        Console.Error.WriteLine(e.Message);
+        notes = ReadNotes();
+        Stockage.Sauver("promo.json", notes);
+    }
+}
+else
+{
+    notes = ReadNotes();
+    Stockage.Sauver("promo.json",notes);
+    Console.WriteLine();    
+    Console.WriteLine("Importé depuis notes.csv");
+
+}
