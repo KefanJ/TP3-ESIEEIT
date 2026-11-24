@@ -11,16 +11,16 @@ namespace TP3
         private static readonly JsonSerializerOptions Options =
             new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
-        public static void Sauver(string chemin, List<Note> notes)
+        public static async Task SauverAsync(string chemin, List<Note> notes)
         {
-            string json = JsonSerializer.Serialize(notes, Options);
-            File.WriteAllText(chemin, json);
+           string json = JsonSerializer.Serialize(notes, Options);
+           await File.WriteAllTextAsync(chemin, json);
 
         }
-        public static List<Note> Charger(string chemin)
+        public static async Task <List<Note>> ChargerAsync(string chemin)
         {
-            var json = File.ReadAllText(chemin);
-            return JsonSerializer.Deserialize<List<Note>>(json, Options) ?? new List<Note>();
+            string json = await File.ReadAllTextAsync(chemin);
+            return JsonSerializer.Deserialize<List<Note>>(json, Options) ?? [];
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System.Globalization;
 using System.Text.Json;
 using TP3;
+using System.Diagnostics;
 
 //##### 0. Mise en place #####
 
@@ -152,26 +153,104 @@ pourquoi ? Est-ce le comportement souhaité ?
 Console.WriteLine("#### 2. Sauvegarder la promo en JSON  ####");
 Console.WriteLine();
 
+//List<Note> notes;
+//if (File.Exists("promo.json"))
+//{
+//    try
+//    {
+//        notes = Stockage.Charger("promo.json");
+//        Console.WriteLine("Chargé depuis promo.json");
+//    }
+//    catch (JsonException e)
+//    { 
+//        Console.Error.WriteLine(e.Message);
+//        notes = ReadNotes();
+//        Stockage.Sauver("promo.json", notes);
+//    }
+//}
+//else
+//{
+//    notes = ReadNotes();
+//    Stockage.Sauver("promo.json",notes);
+//    Console.WriteLine();    
+//    Console.WriteLine("Importé depuis notes.csv");
+
+//}
+
+//### 3. Passer en asynchrone ###
+
+// 3.1 Charger et sauvegarder sans bloquer 
+
+/*12. Écrivez ChargerAsync et SauverAsync avec File.ReadAllTextAsync (ou File.OpenRead et 
+JsonSerializer.DeserializeAsync) et await using. Remplacez les appels dans Program.cs. */
+
 List<Note> notes;
 if (File.Exists("promo.json"))
 {
     try
     {
-        notes = Stockage.Charger("promo.json");
+        notes = await Stockage.ChargerAsync("promo.json");
         Console.WriteLine("Chargé depuis promo.json");
     }
     catch (JsonException e)
-    { 
+    {
         Console.Error.WriteLine(e.Message);
         notes = ReadNotes();
-        Stockage.Sauver("promo.json", notes);
+        await Stockage.SauverAsync("promo.json", notes);
     }
 }
 else
 {
     notes = ReadNotes();
-    Stockage.Sauver("promo.json",notes);
-    Console.WriteLine();    
+    await Stockage.SauverAsync("promo.json", notes);
+    Console.WriteLine();
     Console.WriteLine("Importé depuis notes.csv");
-
 }
+
+
+// 3.2 Mesurer l’effet de Task.WhenAll 
+
+static async Task<string> OperationLenteAsync(string nom)
+{
+    await Task.Delay(1000);
+    return $"{nom} terminée";
+}
+
+/*14. Avec System.Diagnostics.Stopwatch, mesurez le temps de trois appels 
+ * attendus l’un après l’autre.
+ */
+
+string[] noms = ["A", "B", "C"];
+var sw = Stopwatch.StartNew();
+foreach (var n in noms)
+{
+    await OperationLenteAsync(n);
+}
+sw.Stop();
+Console.WriteLine($"Temps : {sw.ElapsedMilliseconds} ms");
+
+/*15. Mesurez le temps des trois mêmes appels lancés d’abord,
+ * puis attendus ensemble avec 
+Task.WhenAll. */
+sw.Restart();
+var t1 = OperationLenteAsync("A");
+var t2 = OperationLenteAsync("B");
+var t3 = OperationLenteAsync("C");
+await Task.WhenAll(t1, t2, t3);
+ sw.Stop();
+
+Console.WriteLine($"Temps avec WhenAll : {sw.ElapsedMilliseconds} ms");
+
+/*
+    16. Lancez cette fois les trois appels avec .Result au lieu de await. Le programme fonctionne-t-il ? 
+Pourquoi est-ce tout de même déconseillé ? 
+ */
+
+sw.Restart();
+var t4 = OperationLenteAsync("A").Result;
+var t5 = OperationLenteAsync("B").Result;
+var t6 = OperationLenteAsync("C").Result;
+//await Task.WhenAll(t4, t5, t6);
+sw.Stop();
+
+Console.WriteLine($"Temps avec Result : {sw.ElapsedMilliseconds} ms");
