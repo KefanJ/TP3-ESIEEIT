@@ -1,7 +1,8 @@
-﻿using System.Globalization;
+﻿using System.Diagnostics;
+using System.Globalization;
+using System.Net.Http.Json;
 using System.Text.Json;
 using TP3;
-using System.Diagnostics;
 
 //##### 0. Mise en place #####
 
@@ -178,7 +179,8 @@ Console.WriteLine();
 //}
 
 //### 3. Passer en asynchrone ###
-
+Console.WriteLine("#### 3. Passer en asynchrone ####");
+Console.WriteLine();
 // 3.1 Charger et sauvegarder sans bloquer 
 
 /*12. Écrivez ChargerAsync et SauverAsync avec File.ReadAllTextAsync (ou File.OpenRead et 
@@ -254,3 +256,120 @@ var t6 = OperationLenteAsync("C").Result;
 sw.Stop();
 
 Console.WriteLine($"Temps avec Result : {sw.ElapsedMilliseconds} ms");
+
+//### 4. Interroger l’API geo.api.gouv.fr ###
+Console.WriteLine();
+Console.WriteLine("#### 4. Interroger l’API geo.api.gouv.fr ####");
+Console.WriteLine();
+
+// 4.1 Une première requête 
+
+/*
+    18. Créez un seul HttpClient pour tout le programme, avec BaseAddress = new 
+Uri("https://geo.api.gouv.fr/"), puis affichez la ou les communes du code postal 35000 avec 
+GetFromJsonAsync. 
+ */
+
+var http = new HttpClient { BaseAddress = new Uri("https://geo.api.gouv.fr/") };
+
+var communes = await http.GetFromJsonAsync<List<Commune>>(
+"communes?codePostal=35000");
+
+foreach (var c in communes ?? [])
+    Console.WriteLine($"{c.Nom} ({c.Code}) : {c.Population} habitants");
+
+/*
+    19. Écrivez Task<List<Commune>> CommunesAsync(string codePostal). Que renvoie l’API pour le code 
+postal 99999 ? Votre méthode doit renvoyer une liste vide, jamais null. 
+ */
+
+async Task<List<Commune>> CommunesAsync(string codePostal, CancellationToken ct = default)
+{
+    var  communes = await http.GetFromJsonAsync<List<Commune>>(
+$"communes?codePostal={codePostal}",ct);
+    return communes ?? [];
+}
+
+var communesAsync = await CommunesAsync("99999");
+
+Console.WriteLine();
+Console.WriteLine("// 19. ");
+Console.WriteLine();
+Console.WriteLine(communesAsync.Count);
+
+// 4.2 La commune de chaque étudiant, en parallèle 
+/*
+    20. Pour chaque inscrit, recherchez sa commune à partir de son code postal. Lancez toutes les requêtes 
+en même temps avec Select et Task.WhenAll, puis affichez par exemple « Ada Lovelace (M1) : 
+Rennes ». 
+
+21. Un inscrit dont le code postal ne correspond à aucune commune (Margaret Hamilton) doit être 
+affiché avec « commune inconnue », sans faire échouer les autres. 
+ */
+Console.WriteLine($"Nombre d'etudiant {etudiantsInscrits.Count}");
+var taches = etudiantsInscrits.Select(async e => (Etudiant: e, Communes: await CommunesAsync(e.CodePostal)));
+var resultats = await Task.WhenAll(taches);
+foreach (var t in resultats)
+{
+    Console.WriteLine($"Etudiant : {t.Etudiant.Prenom} - {t.Etudiant.Nom} (Promo {t.Etudiant.Promo})  Ville : {t.Communes.FirstOrDefault()?.Nom ?? "commune inconnue"}");
+}
+
+
+/*
+    22. Avec Stopwatch, comparez la durée de la version parallèle avec une version où les requêtes sont 
+attendues l’une après l’autre. 
+ */
+
+Console.WriteLine();
+Console.WriteLine("Comparaison des temps de traitement :");
+
+Stopwatch sw2 = Stopwatch.StartNew();
+var taches2 = etudiantsInscrits.Select(async e => (Etudiant: e, Communes: await CommunesAsync(e.CodePostal)));
+var resultats2 = await Task.WhenAll(taches2);
+sw2.Stop();
+Console.WriteLine($"Temps avec WhenAll (version parallèle) : {sw2.ElapsedMilliseconds} ms");
+
+Stopwatch sw3 = Stopwatch.StartNew();
+foreach (var e in etudiantsInscrits)
+{
+    var communes2 = await CommunesAsync(e.CodePostal);
+}
+sw3.Stop();
+Console.WriteLine($"Temps avec boucle (version séquentielle) : {sw3.ElapsedMilliseconds} ms");
+
+// 4.3 Quand le réseau ne répond pas
+
+/*
+    23. Changez temporairement l’adresse de base en https://geo.api.gouv.invalid/. Quelle exception 
+obtenez-vous ? Interceptez-la avec un message clair, puis rétablissez l’adresse. 
+ */
+try
+{
+    Stopwatch sw4 = Stopwatch.StartNew();
+    var taches4 = etudiantsInscrits.Select(async e => (Etudiant: e, Communes: await CommunesAsync(e.CodePostal)));
+    var resultats4 = await Task.WhenAll(taches4);
+    sw4.Stop();
+}
+catch (HttpRequestException ex)
+{
+    Console.WriteLine($"Erreur lors de la récupération des communes : {ex.Message}");
+}
+
+/*
+ * 24. Ajoutez un délai maximal de 3 secondes à l’ensemble des requêtes avec un 
+CancellationTokenSource. Quelle exception est levée si le délai est dépassé ? Pour tester, réduisez 
+le délai à 1 milliseconde. 
+ */
+
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+try
+{
+    Stopwatch sw5 = Stopwatch.StartNew();
+    var taches5 = etudiantsInscrits.Select(async e => (Etudiant: e, Communes: await CommunesAsync(e.CodePostal, cts.Token)));
+    var resultats5 = await Task.WhenAll(taches5);
+    sw5.Stop();
+}
+catch (OperationCanceledException ex)
+{
+    Console.WriteLine($"\"Trop long : abandon au bout de 3 secondes : {ex.Message}");
+}   

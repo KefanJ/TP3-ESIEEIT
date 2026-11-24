@@ -39,3 +39,9 @@ public record Note(string Nom, string Prenom, string Matiere, double Valeur, int
 
 
 public record Bulletin(string Prenom, List<double> Valeurs);
+
+/*
+ 4.1 Une première requête 
+17. Déclarez un record Commune avec seulement les champs utiles : Nom, Code (code INSEE) et Population. 
+Quel type choisir pour Population, et pourquoi ? */
+public record Commune(string Nom, string Code, int? Population);
